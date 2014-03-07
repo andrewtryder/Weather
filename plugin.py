@@ -50,6 +50,7 @@ class WeatherDB():
                           alerts INTEGER DEFAULT 0,
                           almanac INTEGER DEFAULT 0,
                           astronomy INTEGER DEFAULT 0,
+                          daycast INTEGER DEFAULT 0,
                           forecast INTEGER DEFAULT 0,
                           pressure INTEGER DEFAULT 0,
                           wind INTEGER DEFAULT 0,
@@ -64,7 +65,7 @@ class WeatherDB():
             tablelength = len([l[1] for l in cursor.execute("pragma table_info('users')").fetchall()])
             if tablelength == 4:  # old table is 4: users, location, metric, colortemp.
                 self.log.info("Table length is 4. We need to upgrade.")
-                columns = ['alerts', 'almanac', 'astronomy', 'forecast', 'pressure', 'wind', 'uv', 'visibility', 'dewpoint', 'humidity', 'updated']
+                columns = ['alerts', 'almanac', 'astronomy', 'daycast', 'forecast', 'pressure', 'wind', 'uv', 'visibility', 'dewpoint', 'humidity', 'updated']
                 for column in columns:
                     try:
                         cursor.execute('ALTER TABLE users ADD COLUMN %s INTEGER DEFAULT 0' % column)
@@ -279,7 +280,7 @@ class Weather(callbacks.Plugin):
         """<setting> <True|False>
 
         Sets a user's <setting> to True or False.
-        Settings: alerts, almanac, astronomy, forecast, pressure, wind, uv, visibility, dewpoint, humidity, updated
+        Settings: alerts, almanac, astronomy, daycast, forecast, pressure, wind, uv, visibility, dewpoint, humidity, updated
         Ex: metric True or colortemp False
         """
 
@@ -398,6 +399,7 @@ class Weather(callbacks.Plugin):
                 'wind':self.registryValue('showWind'),
                 'updated':self.registryValue('showUpdated'),
                 'showImperialAndMetric':self.registryValue('showImperialAndMetric', msg.args[0]),
+                'daycast':False,
                 'forecast':False,
                 'humidity':False,
                 'strip':False,
@@ -441,6 +443,8 @@ class Weather(callbacks.Plugin):
                     args['imperial'] = False
                 if key == 'alerts':
                     args['alerts'] = True
+                if key == 'daycast':
+                    args['daycast'] = True
                 if key == 'forecast':
                     args['forecast'] = True
                 if key == 'almanac':
@@ -462,7 +466,7 @@ class Weather(callbacks.Plugin):
                 if key == 'nocolortemp':
                     args['nocolortemp'] = True
                 if key == 'help':  # make shift help because the docstring is overloaded above.
-                    irc.reply("Options: --metric --alerts --forecast --almanac --pressure --wind --uv --visibility --dewpoint --astronomy --nocolortemp")
+                    irc.reply("Options: --metric --alerts --daycast --forecast --almanac --pressure --wind --uv --visibility --dewpoint --astronomy --nocolortemp")
                     irc.reply("WeatherDB options: setweather <location> (set user's location). setmetric True/False (set metric option) setcolortemp True/False (display color temp?")
                     return
 
@@ -617,17 +621,18 @@ class Weather(callbacks.Plugin):
                 outdata['feelslike'] = self._tw(args['nocolortemp'], str(data['current_observation']['feelslike_c']) + 'C')
                 outdata['visibility'] = str(data['current_observation']['visibility_km']) + 'km'
             
-        # handle forecast data part. output will be below. (not --forecast)
-        forecastdata = {}  # key = int(day), value = forecast dict.
-        for forecastday in data['forecast']['txt_forecast']['forecastday']:
-            tmpdict = {}
-            tmpdict['day'] = forecastday['title']
-            # tmpdict['symbol'] = self._weatherSymbol(forecastday['icon'])
-            if args['imperial']:   # imperial.
-                tmpdict['text'] = forecastday['fcttext']
-            else:  # metric.
-                tmpdict['text'] = forecastday['fcttext_metric']
-            forecastdata[int(forecastday['period'])] = tmpdict
+        # handle daycast data part. output will be below. (not --forecast)
+        if args['daycast']:
+	    forecastdata = {}  # key = int(day), value = forecast dict.
+            for forecastday in data['forecast']['txt_forecast']['forecastday']:
+	        tmpdict = {}
+        	tmpdict['day'] = forecastday['title']
+	        # tmpdict['symbol'] = self._weatherSymbol(forecastday['icon'])
+        	if args['imperial']:   # imperial.
+        	    tmpdict['text'] = forecastday['fcttext']
+	        else:  # metric.
+	            tmpdict['text'] = forecastday['fcttext_metric']
+	        forecastdata[int(forecastday['period'])] = tmpdict
 
         # now this is the --forecast part.
         if args['forecast']:  # only if we get this in getopts.
@@ -702,8 +707,9 @@ class Weather(callbacks.Plugin):
                 if v: # if that key's value is True, we add it.
                     output += "| {0}: {1} ".format(self._bold(k.title()), outdata[k].encode('utf-8'))
         # add in the first two forecast item in conditions + updated time.
-        output += "| {0}: {1}".format(self._bold(forecastdata[0]['day'].encode('utf-8')), forecastdata[0]['text'].encode('utf-8'))
-        output += " {0}: {1}".format(self._bold(forecastdata[1]['day'].encode('utf-8')), forecastdata[1]['text'].encode('utf-8'))
+	if args['daycast']:
+            output += "| {0}: {1}".format(self._bold(forecastdata[0]['day'].encode('utf-8')), forecastdata[0]['text'].encode('utf-8'))
+            output += " {0}: {1}".format(self._bold(forecastdata[1]['day'].encode('utf-8')), forecastdata[1]['text'].encode('utf-8'))
          # show Updated?
         if args['updated']:
             output += " | {0} {1}".format(self._bold('Updated:'), outdata['observation'].encode('utf-8'))
@@ -750,6 +756,7 @@ class Weather(callbacks.Plugin):
     wunderground = wrap(wunderground, [getopts({'alerts':'',
                                                 'almanac':'',
                                                 'astronomy':'',
+                                                'daycast':'',
                                                 'forecast':'',
                                                 'pressure':'',
                                                 'wind':'',
