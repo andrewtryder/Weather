@@ -23,6 +23,7 @@ conf.registerGlobalValue(Weather,'apiKey', registry.String('', ("""Your wundergr
 conf.registerChannelValue(Weather,'useImperial', registry.Boolean(True, ("""Use imperial units? Defaults to yes.""")))
 conf.registerChannelValue(Weather,'disableColoredTemp', registry.Boolean(False, """If True, this will disable coloring temperatures based on values."""))
 # conf.registerChannelValue(Weather,'useWeatherSymbols', registry.Boolean(False, """Use unicode symbols with weather conditions and for wind direction."""))
+conf.registerGlobalValue(Weather,'daycast', registry.Boolean(True, ("""Display daycast in output by default?""")))
 conf.registerGlobalValue(Weather,'forecast', registry.Boolean(True, ("""Display forecast in output by default?""")))
 conf.registerGlobalValue(Weather,'alerts', registry.Boolean(False, ("""Display alerts by default?""")))
 conf.registerGlobalValue(Weather,'almanac', registry.Boolean(False, ("""Display almanac by default?""")))
