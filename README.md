@@ -10,18 +10,12 @@ be depreciated at some point.
 
 ## Install
 
-You will need a working Limnoria bot on Python 2.7 for this to work.
+You will need a working Limnoria bot on Python 2.7 or Python 3.4 for this to work.
 
 Go into your Limnoria plugin dir, usually ~/supybot/plugins and run:
 
 ```
 git clone https://github.com/reticulatingspline/Weather
-```
-
-To install additional requirements, run:
-
-```
-pip install -r requirements.txt 
 ```
 
 Next, load the plugin:
