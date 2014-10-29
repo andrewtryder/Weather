@@ -6,7 +6,7 @@
 
 I made this plugin because quite a few Weather plugins didn't work well and WunderWeather, which uses
 this API, is on their older XML api that they don't have documented anymore and, one would assume, will
-be depreciated at some point.
+be deprecated at some point.
 
 ## Install
 
