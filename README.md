@@ -6,22 +6,16 @@
 
 I made this plugin because quite a few Weather plugins didn't work well and WunderWeather, which uses
 this API, is on their older XML api that they don't have documented anymore and, one would assume, will
-be depreciated at some point.
+be deprecated at some point.
 
 ## Install
 
-You will need a working Limnoria bot on Python 2.7 for this to work.
+You will need a working Limnoria bot on Python 2.7 or Python 3.4 for this to work.
 
 Go into your Limnoria plugin dir, usually ~/supybot/plugins and run:
 
 ```
 git clone https://github.com/reticulatingspline/Weather
-```
-
-To install additional requirements, run:
-
-```
-pip install -r requirements.txt 
 ```
 
 Next, load the plugin:
