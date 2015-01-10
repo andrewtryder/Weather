@@ -693,45 +693,16 @@ class Weather(callbacks.Plugin):
         if args['alerts']:  # only look for alerts if there.
             if data['alerts']:  # alerts is a list. it can also be empty.
                 outdata['alerts'] = data['alerts'][0]['message']  # need to do some formatting below.
-                outdata['alerts'] = outdata['alerts'].replace('\n', ' ')[:300]  # \n->' ' and max 300 chars.
+                outdata['alerts'] = outdata['alerts'].replace('\n', ' ')#[:300]  # \n->' ' and max 300 chars. This isn't needed if you have alerts on its own output. Supybot will use more.
                 outdata['alerts'] = utils.str.normalizeWhitespace(outdata['alerts'])  # fix pesky double whitespacing.
             else:  # no alerts found (empty).
                 outdata['alerts'] = "No alerts."
 
-        # OUTPUT.
-        # we go step-by-step to build the proper string. ° u" \u00B0C"
-        output = "{0} :: {1} ::".format(self._bold(outdata['location']), outdata['weather'])
-        # add in temperature.
-        output += " {0}".format(outdata['temp'])
-        # humidity.
-        if args['humidity']:  # display humidity?
-            output += " (Humidity: {0}) ".format(outdata['humidity'])
-        else:
-            output += " "
-        # windchill/heatindex are conditional on season but test with startswith to see what to include
-        if not outdata['windchill'].startswith("NA"):  # windchill.
-            output += "| {0} {1} ".format(self._bold('Wind Chill:'), outdata['windchill'])
-        if not outdata['heatindex'].startswith("NA"):  # heatindex.
-            output += "| {0} {1} ".format(self._bold('Heat Index:'), outdata['heatindex'])
-        # now get into the args dict for what to include (extras)
-        for (k, v) in args.items():
-            if k in ['wind', 'visibility', 'uv', 'pressure', 'dewpoint']: # if key is in extras
-                if v: # if that key's value is True, we add it.
-                    output += "| {0}: {1} ".format(self._bold(k.title()), outdata[k])
-        # add in the first two forecast item in conditions + updated time.
-        output += "| {0}: {1}".format(self._bold(forecastdata[0]['day']), forecastdata[0]['text'])
-        output += " {0}: {1}".format(self._bold(forecastdata[1]['day']), forecastdata[1]['text'])
-         # show Updated?
-        if args['updated']:
-            output += " | {0} {1}".format(self._bold('Updated:'), outdata['observation'])
-        # finally, output the basic weather.
-        irc.reply(output)
-
-        # next, for outputting, handle the extras like alerts, almanac, astronomy, forecast.
+        # Handle options that are on their own line first... (so we don't spam a channel with 1 command.)
         if args['alerts']:  # if --alerts issued.
             irc.reply("{0} :: {1}".format(self._bu("Alerts:"), outdata['alerts']))
         # handle almanac if --almanac is given.
-        if args['almanac']:
+        elif args['almanac']:
             if args['nocolortemp']:  # disable colored temp?
                 output = "{0} :: Normal High: {1} (Record: {2} in {3}) | Normal Low: {4} (Record: {5} in {6})".format(\
                     self._bu('Almanac:'), outdata['highnormal'], outdata['highrecord'], outdata['highyear'],\
@@ -743,14 +714,14 @@ class Weather(callbacks.Plugin):
             # now output to irc.
             irc.reply(output)
         # handle astronomy if --astronomy is given.
-        if args['astronomy']:
+        elif args['astronomy']:
             output = "{0} :: Moon illum: {1}%   Moon age: {2}d   Sunrise: {3}  Sunset: {4}  Length of Day: {5}".format(\
                 self._bu('Astronomy:'), outdata['moonilluminated'], outdata['moonage'],outdata['sunrise'],\
                 outdata['sunset'], outdata['lengthofday'])
             # irc output now.
             irc.reply(output)
         # handle main forecast if --forecast is given.
-        if args['forecast']:
+        elif args['forecast']:
             outforecast = [] # prep string for output.
             for (k, v) in fullforecastdata.items(): # iterate through forecast data.
                 if args['nocolortemp']:
@@ -762,6 +733,35 @@ class Weather(callbacks.Plugin):
             # construct our string to output.
             output = "{0} :: {1}".format(self._bu('Forecast:'), " | ".join(outforecast))
             # now output to irc.
+            irc.reply(output)
+        else:
+            # OUTPUT.
+            # we go step-by-step to build the proper string. ° u" \u00B0C"
+            output = "{0} :: {1} ::".format(self._bold(outdata['location']), outdata['weather'])
+            # add in temperature.
+            output += " {0}".format(outdata['temp'])
+            # humidity.
+            if args['humidity']:  # display humidity?
+                output += " (Humidity: {0}) ".format(outdata['humidity'])
+            else:
+                output += " "
+            # windchill/heatindex are conditional on season but test with startswith to see what to include
+            if not outdata['windchill'].startswith("NA"):  # windchill.
+                output += "| {0} {1} ".format(self._bold('Wind Chill:'), outdata['windchill'])
+            if not outdata['heatindex'].startswith("NA"):  # heatindex.
+                output += "| {0} {1} ".format(self._bold('Heat Index:'), outdata['heatindex'])
+            # now get into the args dict for what to include (extras)
+            for (k, v) in args.items():
+                if k in ['wind', 'visibility', 'uv', 'pressure', 'dewpoint']: # if key is in extras
+                    if v: # if that key's value is True, we add it.
+                        output += "| {0}: {1} ".format(self._bold(k.title()), outdata[k])
+            # add in the first two forecast item in conditions + updated time.
+            output += "| {0}: {1}".format(self._bold(forecastdata[0]['day']), forecastdata[0]['text'])
+            output += " {0}: {1}".format(self._bold(forecastdata[1]['day']), forecastdata[1]['text'])
+             # show Updated?
+            if args['updated']:
+                output += " | {0} {1}".format(self._bold('Updated:'), outdata['observation'])
+            # finally, output the basic weather.
             irc.reply(output)
 
     wunderground = wrap(wunderground, [getopts({'alerts':'',
