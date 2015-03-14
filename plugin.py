@@ -136,7 +136,6 @@ class Weather(callbacks.Plugin):
     def __init__(self, irc):
         self.__parent = super(Weather, self)
         self.__parent.__init__(irc)
-        self.APIKEY = self.registryValue('apiKey')
         self.db = WeatherDB()
 
     def die(self):
@@ -381,8 +380,10 @@ class Weather(callbacks.Plugin):
         """
 
         # first, check if we have an API key. Useless w/o this.
-        if len(self.APIKEY) < 1 or not self.APIKEY or self.APIKEY == "Not set":
-            irc.error("Need a Wunderground API key. Set config plugins.Weather.apiKey and reload Weather.", Raise=True)
+        apikey = self.registryValue('apiKey')
+        if not apikey:
+            irc.error("No Wunderground API key was defined. Set 'config plugins.Weather.apiKey' and reload the plugin.",
+                      Raise=True)
 
         # this is to stop spam.
         if optinput and len(optinput) > 50:
@@ -489,8 +490,10 @@ class Weather(callbacks.Plugin):
             irc.error("You must specify a city to search for weather.", Raise=True)
 
         # build url now. first, apikey. then, iterate over urlArgs and insert.
-        url = 'http://api.wunderground.com/api/%s/' % (self.APIKEY) # first part of url, w/APIKEY
+        url = 'http://api.wunderground.com/api/%s/' % (apikey) # first part of url, w/APIKEY
         # now we need to set certain things for urlArgs based on args.
+
+
         for check in ['alerts', 'almanac', 'astronomy']:
             if args[check]: # if args['value'] is True, either via config or getopts.
                 urlArgs['features'].append(check) # append to dict->key (list)
@@ -697,11 +700,11 @@ class Weather(callbacks.Plugin):
         # handle almanac if --almanac is given.
         elif args['almanac']:
             if args['nocolortemp']:  # disable colored temp?
-                output = "{0} :: Normal High: {1} (Record: {2} in {3}) | Normal Low: {4} (Record: {5} in {6})".format(\
+                output = "{0} :: Average High: {1} (Record: {2} in {3}) | Average Low: {4} (Record: {5} in {6})".format(\
                     self._bu('Almanac:'), outdata['highnormal'], outdata['highrecord'], outdata['highyear'],\
                     outdata['lownormal'], outdata['lowrecord'], outdata['lowyear'])
             else:  # colored temp.
-                output = "{0} :: Normal High: {1} (Record: {2} in {3}) | Normal Low: {4} (Record: {5} in {6})".format(\
+                output = "{0} :: Average High: {1} (Record: {2} in {3}) | Average Low: {4} (Record: {5} in {6})".format(\
                     self._bu('Almanac:'), self._temp(outdata['highnormal']), self._temp(outdata['highrecord']),\
                     outdata['highyear'], self._temp(outdata['lownormal']), self._temp(outdata['lowrecord']), outdata['lowyear'])
             # now output to irc.

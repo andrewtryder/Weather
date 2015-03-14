@@ -22,7 +22,6 @@ class WeatherTestCase(PluginTestCase):
         conf.supybot.plugins.Weather.apiKey.setValue(apiKey)
 
     def testWeather(self):
-        self.assertSnarfResponse('reload Weather', 'The operation succeeded.')
         self.assertRegexp('wunderground 10002', 'New York, NY')
         self.assertSnarfResponse('setweather 10002', "I have changed test's weather ID to 10002")
         self.assertSnarfResponse('setuser metric True', "I have changed test's metric setting to 1")
