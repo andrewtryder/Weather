@@ -23,10 +23,8 @@ conf.registerGlobalValue(Weather, 'apiKey',
     registry.String('', ("""Sets the API key for the plugin. You can obtain an API key at http://www.wunderground.com/weather/api/."""), private=True))
 conf.registerChannelValue(Weather, 'useImperial',
     registry.Boolean(True, ("""Determines whether imperial units (Fahrenheit, etc.) will be used.""")))
-conf.registerChannelValue(Weather, 'disableColoredTemp',
-    registry.Boolean(False, """Determines whether colors will be used for displaying temperatures.""")))
-# conf.registerChannelValue(Weather, 'useWeatherSymbols',
-    # registry.Boolean(False, """Use unicode symbols with weather conditions and for wind direction."""))
+conf.registerChannelValue(Weather,'disableColoredTemp', 
+    registry.Boolean(False, ("""Determines whether colors will be used for displaying temperatures.""")))
 conf.registerGlobalValue(Weather,'forecast',
     registry.Boolean(True, ("""Determines whether forecasts will be displayed by default.""")))
 conf.registerGlobalValue(Weather,'alerts',
