@@ -136,7 +136,6 @@ class Weather(callbacks.Plugin):
     def __init__(self, irc):
         self.__parent = super(Weather, self)
         self.__parent.__init__(irc)
-        self.APIKEY = self.registryValue('apiKey')
         self.db = WeatherDB()
 
     def die(self):
@@ -214,12 +213,14 @@ class Weather(callbacks.Plugin):
 
         # lets be safe and wrap in a try/except because we can't always trust data purity.
         try:
+            if x.startswith('NA'): # Wunderground sends a field that's not available
+                return x
             # first, convert into F so we only have one table.
             if x.endswith('C'):  # c.
-                x = float(str(x).replace('C', '')) * 9 / 5 + 32  # remove C + math into float(F).
+                x = float(x[:-1]) * 9 / 5 + 32  # remove C + math into float(F).
                 unit = "C"
             else:  # f.
-                x = float(str(x).replace('F', ''))  # remove F. str->float.
+                x = float(x[:-1])  # remove F. str->float.
                 unit = "F"
             # determine color.
             if x < 10.0:
@@ -248,10 +249,10 @@ class Weather(callbacks.Plugin):
         except Exception as e:  # rutroh. something went wrong.
             self.log.info("_temp: ERROR trying to convert temp: {0} message: {1}".format(x, e))
             return x
-    
+
     def _tw(self, bol, x):
         """This is a convenience handle that wraps _temp."""
-        
+
         # make sure we have 'bol', which should come in from args['nocolortemp'].
         # since the option is a negation, we assume NO.
         if not bol:  # COLOR IT.
@@ -292,7 +293,7 @@ class Weather(callbacks.Plugin):
         # grab a list of valid settings.
         validset = self.db.getsettings()
         if optset not in validset:
-            irc.reply("ERROR: '{0}' is an invalid setting. Must be one of: {1}".format(optset, " | ".join(sorted([i for i in validset]))))
+            irc.error("'{0}' is an invalid setting. Must be one of: {1}".format(optset, " | ".join(sorted([i for i in validset]))), Raise=True)
             return
         # setting value True/False
         if optbool:  # True.
@@ -301,7 +302,7 @@ class Weather(callbacks.Plugin):
             value = 0
         # check user first.
         if not self.db.getuser(msg.nick.lower()):  # user exists
-            irc.reply("ERROR: You're not in the database. You must setweather first.")
+            irc.error("You're not in the database. You must setweather first.", Raise=True)
         else:  # user is valid. perform the op.
             self.db.setsetting(msg.nick.lower(), optset, value)
             irc.reply("I have changed {0}'s {1} setting to {2}".format(msg.nick, optset, value))
@@ -379,14 +380,14 @@ class Weather(callbacks.Plugin):
         """
 
         # first, check if we have an API key. Useless w/o this.
-        if len(self.APIKEY) < 1 or not self.APIKEY or self.APIKEY == "Not set":
-            irc.reply("ERROR: Need a Wunderground API key. Set config plugins.Weather.apiKey and reload Weather.")
-            return
+        apikey = self.registryValue('apiKey')
+        if not apikey:
+            irc.error("No Wunderground API key was defined; set 'config plugins.Weather.apiKey'.",
+                      Raise=True)
 
         # this is to stop spam.
         if optinput and len(optinput) > 50:
-            irc.reply("ERROR: Locations should not be this long. Try again.")
-            return
+            irc.error("Locations should not be this long. Try again.", Raise=True)
 
         # urlargs will be used to build the url to query the API.
         # besides lang, these are unmutable values that should not be changed.
@@ -439,8 +440,7 @@ class Weather(callbacks.Plugin):
                             args[k] = False
         else:  # user was not found.
             if not optinput:  # location was also not specified, so we must bail.
-                irc.reply("ERROR: I did not find a preset location for you. Set via setweather <location>")
-                return
+                irc.error("I did not find a preset location for you. Set via setweather <location>", Raise=True)
 
         # handle optlist (getopts). this will manipulate output via args dict.
         # we must do this after the dblookup for users as it would always override.
@@ -483,17 +483,17 @@ class Weather(callbacks.Plugin):
         if optinput:  # if we have optinput, regardless if the user is known or not, autocomplete it.
             wloc = self._wuac(optinput)
             if not wloc:  # error looking up the location.
-                irc.reply("ERROR: Sorry, I can not find a valid location for: {0}".format(optinput))
-                return
+                irc.error("I could not find a valid location for: {0}".format(optinput), Raise=True)
         elif loc and not optinput:  # user is known. location is set. no optinput.
             wloc = loc   # set wloc as their location. worst case, the user gets an error for setting it wrong.
         else:  # no optinput. no location. error out. this should happen above but lets be redundant.
-            irc.reply("ERROR: Sorry, you specify a city to search for weather.")
-            return
+            irc.error("You must specify a city to search for weather.", Raise=True)
 
         # build url now. first, apikey. then, iterate over urlArgs and insert.
-        url = 'http://api.wunderground.com/api/%s/' % (self.APIKEY) # first part of url, w/APIKEY
+        url = 'http://api.wunderground.com/api/%s/' % (apikey) # first part of url, w/APIKEY
         # now we need to set certain things for urlArgs based on args.
+
+
         for check in ['alerts', 'almanac', 'astronomy']:
             if args[check]: # if args['value'] is True, either via config or getopts.
                 urlArgs['features'].append(check) # append to dict->key (list)
@@ -507,23 +507,20 @@ class Weather(callbacks.Plugin):
         # now that we're done, lets finally make our API call.
         page = self._wunderjson(url, wloc)
         if not page:
-            irc.reply("ERROR: Failed to load Wunderground API. Check logs.")
-            return
+            irc.error("Failed to load Wunderground API. Check the logs for more information.", Raise=True)
 
         # process json.
         try:
             data = json.loads(page.decode('utf-8'))
         except Exception as e:
             self.log.error("ERROR: could not process JSON from: {0} :: {1}".format(url, e))
-            irc.reply("ERROR: Could not process JSON from Weather Underground. Check the logs.")
-            return
+            irc.error("Could not process JSON from Weather Underground. Check the logs.", Raise=True)
 
         # now, a series of sanity checks before we process.
         if 'error' in data['response']:  # check if there are errors.
             errortype = data['response']['error']['type']  # type. description is below.
             errordesc = data['response']['error'].get('description', 'no description')
-            irc.reply("ERROR: I got an error searching '{0}'. ({1}: {2})".format(loc, errortype, errordesc))
-            return
+            irc.error("I got an error searching '{0}'. ({1}: {2})".format(loc, errortype, errordesc), Raise=True)
         # if there is more than one city matching (Ambiguous Results).  we now go with the first (best?) match.
         # this should no longer be the case with our autocomplete routine above but we'll keep this anyways.
         if 'results' in data['response']:  # we grab the first location's "ZMW" which then gets constructed as location.
@@ -531,8 +528,7 @@ class Weather(callbacks.Plugin):
             # grab this first location and search again.
             page = self._wunderjson(url, first)
             if not page:
-                irc.reply("ERROR: Failed to load Wunderground API.")
-                return
+                irc.error("Failed to load Wunderground API.", Raise=True)
             # we're here if we got the second search (best?) now lets reload the json and continue.
             data = json.loads(page.decode('utf-8'))
 
@@ -549,11 +545,11 @@ class Weather(callbacks.Plugin):
         else:  # we do have wind. process differently.
             if args['imperial']:  # imperial units for wind.
                 outdata['wind'] = "{0}@{1}mph".format(self._wind(data['current_observation']['wind_degrees']), data['current_observation']['wind_mph'])
-                if data['current_observation']['wind_gust_mph'] > 0:   # gusts?
+                if int(data['current_observation']['wind_gust_mph']) > 0:   # gusts?
                     outdata['wind'] += " ({0}mph gusts)".format(data['current_observation']['wind_gust_mph'])
             else:  # handle metric units for wind.
                 outdata['wind'] = "{0}@{1}kph".format(self._wind(data['current_observation']['wind_degrees']),data['current_observation']['wind_kph'])
-                if data['current_observation']['wind_gust_kph'] > 0:  # gusts?
+                if int(data['current_observation']['wind_gust_kph']) > 0:  # gusts?
                     outdata['wind'] += " ({0}kph gusts)".format(data['current_observation']['wind_gust_kph'])
 
         # handle the time. concept/method from WunderWeather plugin.
@@ -625,7 +621,7 @@ class Weather(callbacks.Plugin):
                 outdata['windchill'] = self._tw(args['nocolortemp'], str(data['current_observation']['windchill_c']) + 'C')
                 outdata['feelslike'] = self._tw(args['nocolortemp'], str(data['current_observation']['feelslike_c']) + 'C')
                 outdata['visibility'] = str(data['current_observation']['visibility_km']) + 'km'
-            
+
         # handle forecast data part. output will be below. (not --forecast)
         forecastdata = {}  # key = int(day), value = forecast dict.
         for forecastday in data['forecast']['txt_forecast']['forecastday']:
@@ -704,11 +700,11 @@ class Weather(callbacks.Plugin):
         # handle almanac if --almanac is given.
         elif args['almanac']:
             if args['nocolortemp']:  # disable colored temp?
-                output = "{0} :: Normal High: {1} (Record: {2} in {3}) | Normal Low: {4} (Record: {5} in {6})".format(\
+                output = "{0} :: Average High: {1} (Record: {2} in {3}) | Average Low: {4} (Record: {5} in {6})".format(\
                     self._bu('Almanac:'), outdata['highnormal'], outdata['highrecord'], outdata['highyear'],\
                     outdata['lownormal'], outdata['lowrecord'], outdata['lowyear'])
             else:  # colored temp.
-                output = "{0} :: Normal High: {1} (Record: {2} in {3}) | Normal Low: {4} (Record: {5} in {6})".format(\
+                output = "{0} :: Average High: {1} (Record: {2} in {3}) | Average Low: {4} (Record: {5} in {6})".format(\
                     self._bu('Almanac:'), self._temp(outdata['highnormal']), self._temp(outdata['highrecord']),\
                     outdata['highyear'], self._temp(outdata['lownormal']), self._temp(outdata['lowrecord']), outdata['lowyear'])
             # now output to irc.
