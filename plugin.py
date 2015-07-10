@@ -382,7 +382,7 @@ class Weather(callbacks.Plugin):
         # first, check if we have an API key. Useless w/o this.
         apikey = self.registryValue('apiKey')
         if not apikey:
-            irc.error("No Wunderground API key was defined. Set 'config plugins.Weather.apiKey' and reload the plugin.",
+            irc.error("No Wunderground API key was defined; set 'config plugins.Weather.apiKey'.",
                       Raise=True)
 
         # this is to stop spam.
